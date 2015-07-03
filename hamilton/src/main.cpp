@@ -17,14 +17,14 @@
 #include <moveit/move_group_interface/move_group.h>
 #include <moveit/robot_trajectory/robot_trajectory.h>
 #include <moveit/robot_model_loader/robot_model_loader.h>
-#include <moveit/planning_interface/planning_interface.h>
+// #include <moveit/planning_interface/planning_interface.h>
 #include <moveit_msgs/DisplayTrajectory.h>
-#include <moveit_msgs/PlanningScene.h>
+// #include <moveit_msgs/PlanningScene.h>
 #include <moveit/robot_state/conversions.h>
 #include <moveit/trajectory_processing/iterative_time_parameterization.h>
-#include <geometry_msgs/PoseArray.h>
-#include <visualization_msgs/MarkerArray.h>
-#include <eigen_conversions/eigen_msg.h>
+// #include <geometry_msgs/PoseArray.h>
+// #include <visualization_msgs/MarkerArray.h>
+// #include <eigen_conversions/eigen_msg.h>
 
 
 typedef std::vector<descartes_core::TrajectoryPtPtr> TrajectoryVec;
@@ -67,7 +67,8 @@ int main(int argc, char** argv)
   moveit::planning_interface::MoveGroup::Plan plan;
   std::vector<geometry_msgs::Pose> waypoints;
   geometry_msgs::Pose target_pose;
-
+  group.setNamedTarget("home");
+  group.move();
   for(int i = 0; i < 10; ++i)
   {
     // target_pose.orientation.w = 1.0; //try full quaternion
@@ -77,32 +78,32 @@ int main(int argc, char** argv)
     waypoints.push_back(target_pose); 
   }
 
-    for(int i = 0; i < 10; ++i)
-  {
-    // target_pose.orientation.w = 1.0; //try full quaternion
-    // target_pose.position.x = 0;
-    // target_pose.position.y = 0.4;
-    target_pose.position.z = 1.0 + 0.05*i;
-    waypoints.push_back(target_pose); 
-  }
+  //   for(int i = 0; i < 10; ++i)
+  // {
+  //   // target_pose.orientation.w = 1.0; //try full quaternion
+  //   // target_pose.position.x = 0;
+  //   // target_pose.position.y = 0.4;
+  //   target_pose.position.z = 1.0 + 0.05*i;
+  //   waypoints.push_back(target_pose); 
+  // }
 
   // 1. Define sequence of points
   TrajectoryVec points;
   for (unsigned int i = 0; i < 10; ++i)
   {
     Eigen::Affine3d pose;
-    pose = Eigen::Translation3d(0.0, 0.0, 1.5 - 0.05 * i);
+    pose = Eigen::Translation3d(0.0, 0.4, 1.3 - 0.05 * i);
     descartes_core::TrajectoryPtPtr pt = makeTolerancedCartesianPoint(pose);
     points.push_back(pt);
   }
 
-  for (unsigned int i = 0; i < 5; ++i)
-  {
-    Eigen::Affine3d pose;
-    pose = Eigen::Translation3d(0.0, 0.04 * i, 1.3);
-    descartes_core::TrajectoryPtPtr pt = makeTolerancedCartesianPoint(pose);
-    points.push_back(pt);
-  }
+  // for (unsigned int i = 0; i < 5; ++i)
+  // {
+  //   Eigen::Affine3d pose;
+  //   pose = Eigen::Translation3d(0.0, 0.04 * i, 1.3);
+  //   descartes_core::TrajectoryPtPtr pt = makeTolerancedCartesianPoint(pose);
+  //   points.push_back(pt);
+  // }
 
   // 2. Create a robot model and initialize it
   descartes_core::RobotModelPtr model (new descartes_moveit::MoveitStateAdapter);
@@ -173,17 +174,19 @@ int main(int argc, char** argv)
   nh.getParam("controller_joint_names", names);
   // Generate a ROS joint trajectory with the result path, robot model, given joint names,
   // a certain time delta between each trajectory point
-  trajectory_msgs::JointTrajectory joint_solution = toROSJointTrajectory(result, *model, names, 1.0);
+  trajectory_msgs::JointTrajectory descartes_joint_solution = toROSJointTrajectory(result, *model, names, 1.0);
 
-  trajectory_msgs::JointTrajectory result_traj = moveit_robot_traj.joint_trajectory;
+  trajectory_msgs::JointTrajectory moveit_joint_traj = moveit_robot_traj.joint_trajectory;
   robot_trajectory::RobotTrajectory overall_robot_traj(group.getCurrentState()->getRobotModel(), "manipulator");
-  robot_trajectory::RobotTrajectory descartes_result(group.getCurrentState()->getRobotModel(), "manipulator");
+  robot_trajectory::RobotTrajectory descartes_robot_traj(group.getCurrentState()->getRobotModel(), "manipulator");
   overall_robot_traj.setRobotTrajectoryMsg(*group.getCurrentState(), moveit_robot_traj);
-  descartes_result.setRobotTrajectoryMsg(*group.getCurrentState(), result_traj);
-
-  overall_robot_traj.append(descartes_result, descartes_result.getWaypointDurationFromStart(descartes_result.getWayPointCount()));
+  descartes_robot_traj.setRobotTrajectoryMsg(*group.getCurrentState(), descartes_joint_solution);
+  overall_robot_traj.append(descartes_robot_traj, descartes_robot_traj.getWaypointDurationFromStart(descartes_robot_traj.getWayPointCount()));
   moveit_msgs::RobotTrajectory combined;
   overall_robot_traj.getRobotTrajectoryMsg(combined);
+  //TOMIGHTDO http://docs.ros.org/hydro/api/moveit_core/html/classrobot__trajectory_1_1RobotTrajectory.html
+  //This API could be improved by allowing for trajectory_msgs::JointTrajectory &trajectory argument in void getRobotTrajectoryMsg 
+  //Coz for setRobotTrajectory msg, you could pass trajectory_msgs::JointTrajectory or moveit_msgs::RobotTrajectory as done for Descartes above
   trajectory_msgs::JointTrajectory joints_combined = combined.joint_trajectory;
 
   // 6. Send the ROS trajectory to the robot for execution
