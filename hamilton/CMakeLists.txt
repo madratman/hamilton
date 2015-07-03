@@ -33,7 +33,7 @@ include_directories(
 
 #add_library(${PROJECT_NAME} src/hybrid_planner.cpp)
 
-add_executable(${PROJECT_NAME}_demo src/hybrid_planner.cpp)
+add_executable(${PROJECT_NAME}_demo src/main.cpp)
 
 target_link_libraries(${PROJECT_NAME}_demo ${catkin_LIBRARIES})
 
